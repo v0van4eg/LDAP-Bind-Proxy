@@ -30,7 +30,7 @@ import json
 
 class OidcProxy(ProxyBase):
     """
-    A simple example of using `ProxyBase` to log requests and responses.
+    Простой пример использования `ProxyBase` для логирования запросов и ответов.
     """
 
     def __init__(self):
@@ -40,9 +40,9 @@ class OidcProxy(ProxyBase):
 
     def get_groups_from_token(self, access_token):
         """
-        Extract group information from OIDC access token.
-        This is a simplified implementation - in reality, you might need to 
-        decode the JWT token or call userinfo endpoint to get group memberships.
+        Извлечение информации о группах из OIDC токена доступа.
+        Это упрощенная реализация - на практике вам может потребоваться 
+        декодировать JWT токен или вызвать конечную точку userinfo для получения членства в группах.
         """
         try:
             # In a real implementation, we would decode the JWT token
@@ -61,8 +61,8 @@ class OidcProxy(ProxyBase):
 
     def filter_entries_by_group_membership(self, entries, required_groups, user_groups):
         """
-        Filter LDAP entries based on group membership information obtained from OIDC.
-        Only return entries that the user has permission to access based on their group membership.
+        Фильтрация записей LDAP на основе информации о членстве в группах, полученной из OIDC.
+        Возвращаются только те записи, к которым пользователь имеет доступ на основе своего членства в группах.
         """
         # In a real implementation, this would validate each entry against 
         # the user's actual group memberships from OIDC token
@@ -78,12 +78,12 @@ class OidcProxy(ProxyBase):
 
     def handleBeforeForwardRequest(self, request, controls, reply):
         """
-        Log the representation of the request received.
+        Логирование представления полученного запроса.
         """
         print(repr(request))
         if isinstance(request, pureldap.LDAPBindRequest):
-            # Get OIDC token through password grant
-            ## Quick and dirty username from DN assuming it is CN
+            # Получение OIDC токена через грант пароля
+            ## Быстрое и грязное извлечение имени пользователя из DN, предполагая, что это CN
             username = request.dn.split(b',')[0][3:]
             password = request.auth
 
@@ -100,36 +100,36 @@ class OidcProxy(ProxyBase):
             print(url)
             oidc_response = requests.request("POST", url, headers=headers, data=payload)
 
-            # Logging username and status code
+            # Логирование имени пользователя и кода состояния
             print(username.decode('utf-8') + " " + str(oidc_response.status_code))
             
             if oidc_response.status_code == requests.codes['ok']:
-                # LDAP Bind success
-                # Store user session info including groups from OIDC token
+                # Успешная привязка LDAP
+                # Сохранение информации о сессии пользователя, включая группы из OIDC токена
                 response_json = oidc_response.json()
-                access_token = json.dumps(response_json)  # Store entire response as string
+                access_token = json.dumps(response_json)  # Сохранение всего ответа в виде строки
                 user_groups = self.get_groups_from_token(access_token)
                 
-                # Store session info: bind DN -> {token, groups}
+                # Сохранение информации о сессии: bind DN -> {token, groups}
                 self.user_sessions[request.dn] = {
                     'access_token': access_token,
                     'groups': user_groups
                 }
                 
-                # Set the current bound DN for this connection
+                # Установка текущего привязанного DN для этого соединения
                 self.current_bound_dn = request.dn
                 
                 msg= pureldap.LDAPBindResponse(
                         resultCode=ldaperrors.Success.resultCode
                     )
             else:
-                # Invalid credentials (see keycloak logs)
+                # Неверные учетные данные (см. логи keycloak)
                 msg= pureldap.LDAPBindResponse(
                         resultCode=ldaperrors.LDAPInvalidCredentials.resultCode
                     )
             reply(msg)
         if isinstance(request, pureldap.LDAPSearchRequest):
-            # Process LDAP search requests with group filtering
+            # Обработка запросов поиска LDAP с фильтрацией по группам
             baseDN = request.base
             scope = request.scope
             derefAliases = request.derefAliases
@@ -138,63 +138,63 @@ class OidcProxy(ProxyBase):
             typesOnly = request.typesOnly
             filterStr = str(request.filter)
             
-            # Check if the filter contains a group membership check
-            # Example filters could be:
+            # Проверка, содержит ли фильтр проверку членства в группе
+            # Примеры фильтров могут быть:
             # - (memberOf=cn=groupname,ou=groups,dc=example,dc=org)
             # - (&(objectClass=user)(memberOf=cn=developers,ou=groups,dc=example,dc=org))
             print(f"Search request: base={baseDN}, filter={filterStr}")
             
-            # Extract group information from the filter if present
+            # Извлечение информации о группах из фильтра, если она присутствует
             group_filter_parts = []
             if 'memberOf' in filterStr:
-                # Parse the memberOf attribute to extract group names
+                # Разбор атрибута memberOf для извлечения имен групп
                 import re
                 group_matches = re.findall(r'memberOf=([^,]+)', filterStr)
                 group_filter_parts.extend(group_matches)
             
-            # Since we now have a real LDAP connection, let's perform the actual search
-            # but we need to consider the user's group memberships from OIDC
+            # Поскольку теперь у нас есть реальное соединение с LDAP, давайте выполним фактический поиск
+            # но мы должны учитывать членство пользователя в группах из OIDC
             
-            # For demonstration, we'll forward the request to the real LDAP server
-            # In a complete implementation, we would:
-            # 1. Determine the authenticated user
-            # 2. Get their group memberships from OIDC token
-            # 3. Modify the search filter based on allowed groups
-            # 4. Perform the search
-            # 5. Potentially filter results based on group access rights
+            # Для демонстрации мы перешлем запрос на реальный сервер LDAP
+            # В полной реализации мы бы:
+            # 1. Определили аутентифицированного пользователя
+            # 2. Получили их членство в группах из OIDC токена
+            # 3. Изменили бы фильтр поиска на основе разрешенных групп
+            # 4. Выполнили бы поиск
+            # 5. Потенциально отфильтровали бы результаты на основе прав доступа к группам
             
-            # Get the user's groups from the session (based on the bind DN of the connection)
-            # For now, we'll assume the connection represents a bound user
-            # In a real implementation, we would track which user is associated with each connection
+            # Получение групп пользователя из сессии (на основе bind DN соединения)
+            # Пока мы предположим, что соединение представляет собой привязанного пользователя
+            # В реальной реализации мы бы отслеживали, какой пользователь связан с каждым соединением
             user_groups = []
             if hasattr(self, 'current_bound_dn') and self.current_bound_dn in self.user_sessions:
                 user_groups = self.user_sessions[self.current_bound_dn]['groups']
-            # In this implementation, we'll temporarily store the current bound DN during bind operation
+            # В этой реализации мы временно сохраним текущий привязанный DN во время операции привязки
             
             def handle_search_response(response):
                 if isinstance(response, pureldap.LDAPSearchResultEntry):
-                    # This is a search result entry
-                    # Apply group-based filtering if needed
+                    # Это запись результата поиска
+                    # Применить фильтрацию на основе групп, если необходимо
                     if group_filter_parts:
-                        # If the original filter was checking for specific groups,
-                        # verify that the current user has access to those groups
+                        # Если исходный фильтр проверял конкретные группы,
+                        # проверим, что у текущего пользователя есть доступ к этим группам
                         filtered_entries = self.filter_entries_by_group_membership([response], group_filter_parts, user_groups)
                         if filtered_entries:
                             reply(filtered_entries[0])
                     else:
-                        # No group filtering needed, just forward the entry
+                        # Фильтрация по группам не требуется, просто пересылаем запись
                         reply(response)
                 elif isinstance(response, pureldap.LDAPSearchResultDone):
-                    # Search is complete, forward the done message
+                    # Поиск завершен, пересылаем сообщение о завершении
                     reply(response)
-                    return False  # Stop processing
-                return True  # Continue processing
+                    return False  # Остановить обработку
+                return True  # Продолжить обработку
             
-            # Forward the search request to the real LDAP server
+            # Пересылка запроса поиска на реальный сервер LDAP
             d = self.client.send_request(request, handle_search_response)
             
-            # We need to handle the response properly, but since this is async,
-            # we return early (None) and let the callback handle responses
+            # Нам нужно правильно обработать ответ, но поскольку это асинхронно,
+            # мы возвращаемся рано (None), а обратный вызов обрабатывает ответы
             return None
         if isinstance(request, pureldap.LDAPExtendedRequest):
             msg = pureldap.LDAPExtendedResponse(
@@ -208,13 +208,13 @@ class OidcProxy(ProxyBase):
             reply(msg)
         return None
 
-    ## TODO: This is a Workaround, implement a cleaner proxy class from class ServerBase
+    ## TODO: Это обходной путь, реализовать более чистый класс прокси от класса ServerBase
     def connectionMade(self):
-        """ Overridden method to setup proxy with real LDAP server connection for searches.
-        We need a real connection to perform searches and apply group filters """
+        """ Переопределенный метод для настройки прокси с реальным соединением с сервером LDAP для поиска.
+        Нам нужно реальное соединение для выполнения поиска и применения фильтров по группам """
         print("connectionMade called")
-        # Initialize the client connection to the real LDAP server
-        # Get LDAP server details from environment variables
+        # Инициализация клиентского соединения с реальным сервером LDAP
+        # Получение данных о сервере LDAP из переменных окружения
         ldap_server = os.environ.get("REAL_LDAP_SERVER", "ldap://localhost:389")
         proxiedEndpointStr = ldap_server
         
@@ -224,27 +224,27 @@ class OidcProxy(ProxyBase):
         )
 
         def error(err):
-            print(f"Could not connect to real LDAP server: {err}")
+            print(f"Не удалось подключиться к реальному серверу LDAP: {err}")
             return err
 
         def connected(client):
             self.client = client
             client.serviceIdentity = self.serviceIdentity
-            # Forward any pending requests
+            # Пересылка любых ожидающих запросов
             self._continuePumping()
             return client
 
         d.addCallback(connected)
         d.addErrback(error)
-        # Store the deferred for later use
+        # Сохранение отложенного объекта для дальнейшего использования
         self.clientConnectionDeferred = d
-        # Initialize current bound DN to None
+        # Инициализация текущего привязанного DN значением None
         self.current_bound_dn = None
         ldapserver.BaseLDAPServer.connectionMade(self)
     
 if __name__ == '__main__':
     """
-    Demonstration LDAP OIDC proxy; listens on localhost:389 and translate to OIDC protocol
+    Демонстрационный LDAP OIDC прокси; прослушивает localhost:389 и преобразует в протокол OIDC
     """
     log.startLogging(sys.stderr)
     factory = protocol.ServerFactory()

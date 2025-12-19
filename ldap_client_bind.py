@@ -24,10 +24,10 @@ from ldaptor.protocols.ldap.ldapsyntax import LDAPEntry
 
 @defer.inlineCallbacks
 def onConnect(client):
-    # The following arguments may be also specified as unicode strings
-    # but it is recommended to use byte strings for ldaptor objects
+    # Следующие аргументы могут быть также указаны как строки в формате unicode
+    # но рекомендуется использовать байтовые строки для объектов ldaptor
     basedn = b"dc=example,dc=org"
-    # Cn & pw replaced with keycloak test user
+    # Cn & pw заменены на тестового пользователя keycloak
     binddn = b"cn=test,ou=people,dc=example,dc=org"
     bindpw = b"pwtest" 
     try:

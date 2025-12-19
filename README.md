@@ -1,57 +1,57 @@
 
 
 
-# Get rid of your old Active directory/LDAP with keycloak and a small piece of custom software
+# Избавьтесь от устаревшего Active Directory/LDAP с помощью Keycloak и небольшого кусочка кастомного ПО
 
-## TL;DR
+## Кратко
 
-How to spawn a simple bind LDAP proxy for keycloak OIDC password grant in a nutshell.
+Как запустить простой прокси привязки LDAP для гранта пароля Keycloak OIDC в двух словах.
 
-## Disclaimer and license
+## Отказ от ответственности и лицензия
 
-The principles and code presented here are only a proof of concept and shouldn't be used in production as is. Use it at your own risks. If you see any problem with the concept or its implementation feel free to open an issue or submit a pull request on github. [https://github.com/please-openit/LDAP-Bind-Proxy](https://github.com/please-openit/LDAP-Bind-Proxy)
+Принципы и код, представленные здесь, являются лишь доказательством концепции и не должны использоваться в продакшене как есть. Используйте на свой страх и риск. Если вы видите какие-либо проблемы с концепцией или реализацией, не стесняйтесь открывать issue или отправлять pull request на github. [https://github.com/please-openit/LDAP-Bind-Proxy](https://github.com/please-openit/LDAP-Bind-Proxy)
 
-This proof of concept is distributed under the Apache 2.0 license. See LICENSE.md in the git repository.
+Этот прототип распространяется под лицензией Apache 2.0. См. LICENSE.md в репозитории git.
 
-## LDAP/AD is more and more a legacy service but not always
+## LDAP/AD все чаще становится устаревшим сервисом, но не всегда
 
-If you are using Active directory as your main user management tool and are happy with it this article may not be meant for you.
-There is no problem with using Active directory or LDAP at the core of your system, this article is meant for those who have to deal with one or two legacy software supporting only LDAP protocol.
+Если вы используете Active Directory в качестве основного инструмента управления пользователями и довольны этим, эта статья может быть не для вас.
+Нет ничего плохого в использовании Active Directory или LDAP в качестве ядра вашей системы, эта статья предназначена для тех, кто вынужден иметь дело с одним или двумя устаревшими приложениями, поддерживающими только протокол LDAP.
 
-In such a case, the common way to do it with keycloak is to use an OpenLDAP as the keycloak user backend. This allows to enable both OpenId Connect and LDAP but it has major drawbacks. If OpenLDAP fails keycloak also fails, it is a new single point of failure to your infrastructure. Thus there is the need to maintain and replicate this element. This can be a lot of work sometimes only to maintain compatibility with a non critical legacy application.
+В этом случае обычный способ сделать это с Keycloak - использовать OpenLDAP в качестве бэкенда пользователей Keycloak. Это позволяет включить как OpenID Connect, так и LDAP, но имеет серьезные недостатки. Если OpenLDAP выходит из строя, Keycloak также выходит из строя, это новая точка отказа в вашей инфраструктуре. Таким образом, необходимо обслуживать и реплицировать этот элемент. Иногда это может быть много работы, только чтобы поддерживать совместимость с не критичным устаревшим приложением.
 
-![Old configuration with two spofs](image.png)
+![Старая конфигурация с двумя точками отказа](image.png)
 
-## An elegant minimalist LDAP proxy for keycloak
+## Элегантный минималистичный LDAP прокси для Keycloak
 
-To deal with the situation described above, it would be nice to have a minimalist proxy to perform and translate LDAP bind request against the keycloak server. 
+Чтобы справиться с описанной выше ситуацией, было бы здорово иметь минималистичный прокси для выполнения и преобразования LDAP bind запроса к серверу keycloak.
 
 
-Keycloak implements the OpenID Connect direct password grant, this allows us to imagine a simpler and more robust architecture.
+Keycloak реализует прямой грант пароля OpenID Connect, это позволяет представить более простую и надежную архитектуру.
 
-![New architecture with one spof](image-1.png)
+![Новая архитектура с одной точкой отказа](image-1.png)
 
-There are the same number of components but the LDAP proxy is stateless and less critical depending on the applications that rely on it.
+Количество компонентов такое же, но LDAP прокси не имеет состояния и менее критичен в зависимости от приложений, которые на него полагаются.
 
-It is also a way more simple component that can be spawned anywhere you need it even besides your client application for casual use.
+Это также более простой компонент, который можно запустить где угодно, где он нужен, даже рядом с клиентским приложением для обычного использования.
 
-## How LDAP Bind proxy works
+## Как работает LDAP Bind прокси
 
-Ldap bind proxy will simply "translate" LDAPBind request it receives to password grant request. To do so, it needs its own dedicated confidential client that allows direct access grant.
+Ldap bind прокси просто "переведет" полученный LDAPBind запрос в грант пароля. Для этого ему нужен свой собственный выделенный конфиденциальный клиент, который позволяет прямой доступ по гранту.
 
-![Sequence diagram of LDAP Bind proxy](image-2.png)
+![Диаграмма последовательности LDAP Bind прокси](image-2.png)
 
-The user logs-in as he always does, the legacy app sends a LDAPBindRequest as it always does, then the LDAP Bind proxy translates it to a password grant and gives a LDAP Bind Response according to the keycloak's response.
+Пользователь входит в систему так, как всегда, устаревшее приложение отправляет LDAPBindRequest так, как всегда, затем LDAP Bind прокси преобразует его в грант пароля и дает LDAP Bind Response в соответствии с ответом keycloak.
 
-To ensure login security, the client must be confidential and the LDAP bind proxy must be deployed on a safe network and VM to keep its client credentials secret.
+Для обеспечения безопасности входа, клиент должен быть конфиденциальным, а LDAP bind прокси должен быть развернут в безопасной сети и на безопасной виртуальной машине, чтобы сохранить конфиденциальность учетных данных клиента.
 
-## Implementation
+## Реализация
 
-A full demo is available on github, feel free to try it by yourself. [https://github.com/please-openit/LDAP-Bind-Proxy](https://github.com/please-openit/LDAP-Bind-Proxy)
+Полная демонстрация доступна на github, не стесняйтесь попробовать самостоятельно. [https://github.com/please-openit/LDAP-Bind-Proxy](https://github.com/please-openit/LDAP-Bind-Proxy)
 
-The proof of concept relies on LDAPProxy from twisted/ldaptor for convenience reasons. But could have been built on top of any up-to-date LDAP layer.
+Прототип опирается на LDAPProxy от twisted/ldaptor для удобства. Но он мог быть построен на основе любого современного LDAP слоя.
 
-All parameters comes from environment variables with all standard names you already knows.
+Все параметры поступают из переменных окружения со стандартными именами, которые вы уже знаете.
 
 - LDAP_PROXY_TOKEN_URL
 - LDAP_PROXY_CLIENT_ID
